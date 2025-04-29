@@ -1,0 +1,39 @@
+import { Request, Response, NextFunction } from "express";
+import jwt from 'jsonwebtoken';
+import { jwtConfig } from "../config/jwt";
+
+
+export interface AuthRequest extends Request {
+    user?: { id: number; role: string }
+}
+
+export function ensureAuth(req: AuthRequest, res: Response, next: NextFunction) {
+    const authHeader = req.headers.authorization
+    if (!authHeader) return res.status(401).json({
+        error: 'Token não fornecido'
+    });
+
+    const [, token] = authHeader.split(' ')
+
+    try {
+        const decoded = jwt.verify(token, jwtConfig.secret) as { id: number; role: string }
+        req.user = decoded
+        next()
+    } catch {
+        return res.status(401).json({
+            error: 'Token inválido'
+        });
+    }
+}
+
+export function ensureRole(requireRole: string) {
+    return (req: AuthRequest, res: Response, next: NextFunction) => {
+        if (req.user?.role !== requireRole) {
+            return res.status(403).json({
+                error: 'Acesso negado'
+            })
+        }
+    }
+}
+
+
